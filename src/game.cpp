@@ -10,19 +10,20 @@
 #include <vector>
 
 Game::Game(const std::string& wordsFilePath)
-	: currentFontIndex(0) {
+	: currentFontIndex(0)
+{
 	words = loadWordsFromFile(wordsFilePath);
 	fonts = loadAllFonts();
 
 	// Inicjalizacja licznika użycia fontów
 	fontUsageCount.resize(fonts.size(), 0);
 
-	std::cout << "[Game] Loaded "
-	<< words.size() << " words, "
-	<< fonts.size() << " fonts.\n";
+	initInactiveWords();
+
+	std::cout << "[Game] Loaded " << words.size() << " words, " << fonts.size() << " fonts.\n";
 }
 
-int Game::getNextFontIndex() {
+auto Game::getNextFontIndex()-> int {
 
 	// Przechodzimy maksymalnie przez 16 fontów (fonts.size()),
 	// zaczynając od currentFontIndex. Jeśli znajdziemy wolny (<7),
@@ -41,10 +42,9 @@ int Game::getNextFontIndex() {
 			// przesuwamy currentFontIndex o 1 do przodu
 			currentFontIndex = (currentFontIndex + 1) % fonts.size();
 			return idx;
-		} else {
-			// przechodzimy do następnego fontu
-			currentFontIndex = (currentFontIndex + 1) % fonts.size();
 		}
+		// przechodzimy do następnego fontu
+		currentFontIndex = (currentFontIndex + 1) % fonts.size();
 	}
 	// Jeśli pętla się zakończyła (sprawdziliśmy wszystkie fonty) i nigdzie
 	// nie było < 7, to znaczy brak wolnych fontów (wszystkie po 7 użyć).
@@ -52,7 +52,7 @@ int Game::getNextFontIndex() {
 }
 
 // zwalnianie fontu
-void Game::releaseFont(int fontIndex) {
+auto Game::releaseFont(int fontIndex) -> void {
 	if (fontIndex >= 0 && fontIndex < static_cast<int>(fontUsageCount.size())) {
 		fontUsageCount[fontIndex]--;
 		if (fontUsageCount[fontIndex] < 0) {
@@ -62,24 +62,13 @@ void Game::releaseFont(int fontIndex) {
 }
 
 // dostęp do fontu
-Font& Game::getFont(int index) {
+auto Game::getFont(int index) -> Font& {
 	return fonts[index];
 }
 
-auto Game::checkWordOnScreen(const std::string& typedWord, const std::vector<std::string>& activeWords) -> void {
-	for (auto &word : activeWords) {
-		if (typedWord == word) {
-			//TODO
-			// usunąć słowo z listy
-			// dodać punkty
-			// dodać nowe słowo
-		}
-	}
-
-}
 
 // Funkcja do wczytywania słów z pliku
-std::vector<std::string> Game::loadWordsFromFile(const std::string& filePath) {
+auto Game::loadWordsFromFile(const std::string& filePath) -> std::vector<std::string> {
     std::vector<std::string> words;
     std::ifstream file(filePath);
     if (!file.is_open()) {
@@ -98,7 +87,8 @@ std::vector<std::string> Game::loadWordsFromFile(const std::string& filePath) {
     return words;
 }
 
-std::vector<Font> Game::loadAllFonts() {
+// wczyywanie wszystkich fontów
+auto Game::loadAllFonts() -> std::vector<Font>{
 
     std::vector<Font> fonts;
     fonts.reserve(16);  // wiemy, że będzie 16 fontów
@@ -161,4 +151,76 @@ std::vector<Font> Game::loadAllFonts() {
     return fonts;
 }
 
+auto Game::GameWord::update(float dt)-> void {
+	auto pos = sfText.getPosition();
+	pos.x += speedX * dt;
+	sfText.setPosition(pos);
+}
+
+// sprawdzanie słów z ekranu
+auto Game::checkWordOnScreen(const std::string &typedWord, std::vector<GameWord> &activeWords, Game &game) -> void {
+	for (auto &gw: activeWords) {
+		if (typedWord == gw.originalString) {
+			gw.isAlive = false;
+			game.releaseFont(gw.fontIndex);
+#ifdef DEBUG_WORDS
+			std::cout << "[Game::checkWordOnScreen] Word '"
+					  << gw.originalString
+					  << "' matched -> setting isAlive=false, releasing font\n";
+#endif
+		}
+	}
+}
+
+auto Game::initInactiveWords() -> void {
+	inActiveWords.clear();
+	inActiveWords.reserve(words.size());
+
+	for (const auto &w: words) {
+		// tworzymy obiekt GameWord jako nieaktywny
+		GameWord gw;
+		gw.originalString = w;
+		gw.isAlive = false;
+		gw.fontIndex = -1;
+		gw.speedX = 0.f;
+		// sfText.setFont() nie ustawiamy bo potrzebuje index getNExtFontIndex()
+		inActiveWords.push_back(gw);
+	}
+}
+auto Game::spawnWord() -> void {
+	// Sprawdź, czy mamy jakiekolwiek nieaktywne słowo
+	if (inActiveWords.empty()) {
+		std::cout << "All words are active!\n";
+		return; // <-- KONIEC, nie wywołujemy pop_back()!
+	}
+
+	// Bierzemy ostatni element z inActiveWords
+	GameWord gw = inActiveWords.back();
+	inActiveWords.pop_back();
+
+	// pobieramy index fontu
+	int idx = getNextFontIndex();
+	if (idx == -1) {
+		std::cout << "No more fonts available!\n";
+		inActiveWords.push_back(gw);
+		return; // <-- KONIEC, nie ustawiamy gw.fontIndex = -1 itp.
+	}
+
+	// Ustawiamy parametry GameWord
+	gw.fontIndex = idx;
+	gw.sfText.setFont(fonts[idx].getSfFont());
+	gw.sfText.setCharacterSize(80);
+	gw.sfText.setFillColor(sf::Color::Green);
+	gw.sfText.setPosition(100, 400);  // poza ekranem
+	gw.isAlive = true;
+	gw.speedX = 70.f;
+
+	// dodajemy do aktywnych
+	activeWords.push_back(gw);
+
+#ifdef DEBUG_WORDS
+	std::cout << "[Game::spawnWord] Spawned word:\n"
+			  << gw.debugInfo() << "\n";
+#endif
+}
 

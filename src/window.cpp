@@ -2,6 +2,7 @@
 #include <iostream>
 #include "../include/game.h" // Funkcja loadWordsFromFile
 #include "font.h" // Twój wrapper Font (OpenSans, AntonSC itd.)
+#include <algorithm>
 
 // ------------------------------------------------------------------
 // Funkcja wątku muzyki
@@ -19,8 +20,13 @@ auto loopThreadFn(sf::Music &loop, const std::atomic<bool> &running) -> void {
 Window::Window(const int width, const int height, const std::string &title, const int frameRate) :
 	width(width), height(height), title(title), frameRate(frameRate), running(true), isGameStarted(false) {
 	// Tworzymy okno SFML – ale NIE wchodzimy tu w pętlę zdarzeń!
-	window.create(sf::VideoMode(static_cast<int>(width), static_cast<int>(height)), title, sf::Style::Close);
+	window.create(sf::VideoMode(width, height), title, sf::Style::Close);
 	window.setFramerateLimit(frameRate);
+
+	std::cout << "Created window: "
+		  << window.getSize().x << "x"
+		  << window.getSize().y << "\n";
+
 }
 
 // ------------------------------------------------------------------
@@ -39,43 +45,49 @@ Window::~Window() {
 // ------------------------------------------------------------------
 // Metoda uruchamiająca główną pętlę zdarzeń i logikę gry
 // ------------------------------------------------------------------
-void Window::run() {
+auto Window::run() -> void {
+	// Tworzymy obiekt gry
+	Game game("../assets/words.txt");
+
+	int score = 0;
+	int lives = 6;
+	bool isPaused = false;
 
 
-	// -----------------------------------------
-	// 1. Wczytujemy listę słów
-	// -----------------------------------------
-	auto allWords = Game::loadWordsFromFile("../assets/words.txt");
-	if (allWords.empty()) {
-		std::cout << "No words loaded (file might be empty or missing)!\n";
-		// Możesz tu obsłużyć sytuację braku słów np. przerwać grę
-	} else {
-		std::cout << "Loaded " << allWords.size() << " words from file.\n";
-	}
 
-	// Przykładowo wypisz pierwsze słowo (debug):
-	if (!allWords.empty()) {
-		std::cout << "Example word: " << allWords[0] << std::endl;
-	}
 
 	// 2. Wczytaj fonty
-	auto fonts = Game::loadAllFonts();
-	std::cout << "Loaded " << fonts.size() << " fonts.\n";
-
-	//TODO: implementacja mechaniki gry (np. wyświetlanie słów, sprawdzanie poprawności wpisywanych słów)
-	std::vector<std::string> activeWords;
-
+	auto loadedFonts = Game::loadAllFonts();
+	std::cout << "Loaded " << loadedFonts.size() << " fonts.\n";
 	// fonty uzytkowe z okna
-	Font antonsc = fonts[1];
-	Font orangeKid = fonts[2];
+	Font antonsc = loadedFonts[1];
+	Font orangeKid = loadedFonts[2];
 
-	// 2. Tworzymy teksty
-	std::string playerInput;
+	// Tekst wpisywany przez gracza
 	sf::Text userInputText;
 	userInputText.setFont(orangeKid.getSfFont());
 	userInputText.setCharacterSize(30);
 	userInputText.setFillColor(sf::Color::White);
-	userInputText.setString("");
+
+	// Tekst z wynikiem
+	sf::Text scoreText;
+	scoreText.setFont(orangeKid.getSfFont());
+	scoreText.setCharacterSize(20);
+	scoreText.setFillColor(sf::Color::White);
+	scoreText.setPosition(20.f, 20.f);
+
+	// Tekst z ilością żyć
+	sf::Text livesText;
+	livesText.setFont(orangeKid.getSfFont());
+	livesText.setCharacterSize(20);
+	livesText.setFillColor(sf::Color::White);
+	livesText.setPosition(20.f, 50.f);
+
+	// Tekst "PAUSED"
+	sf::Text pauseText;
+	pauseText.setFont(orangeKid.getSfFont());
+	pauseText.setCharacterSize(40);
+	pauseText.setString("PAUSED");
 
 	sf::Text monkey("Monke Typer", antonsc.getSfFont(), 90);
 	monkey.setFillColor(sf::Color::White);
@@ -86,9 +98,7 @@ void Window::run() {
 	sf::Text pressToStart("PRESS MOUSE LEFT BUTTON TO START", orangeKid.getSfFont(), 30);
 	pressToStart.setFillColor(sf::Color::White);
 	pressToStart.setPosition(435.f, 360.f);
-
 	bool isVisible = true;
-	sf::Clock blinkClock;
 
 	// 3. Ustawiamy ikonę okna
 	if (sf::Image icon; !icon.loadFromFile("../assets/img/jp2.png")) {
@@ -111,8 +121,17 @@ void Window::run() {
 	sf::Sound clickSound;
 	clickSound.setBuffer(clickSoundBuffer);
 
+	// 4) Zegary do mierzenia czasu
+	sf::Clock clock;       // do delta time
+	sf::Clock spawnClock;  // jak często spawnujemy nowe słowo
+	sf::Clock blinkClock; // miganie napisu "PRESS..."
+
 	// 6. Główna pętla zdarzeń
 	while (window.isOpen()) {
+		// delta time
+		float dt = clock.restart().asSeconds();
+
+		// obsługa zdarzeń
 		sf::Event event{};
 		while (window.pollEvent(event)) {
 			// Zamknięcie okna (np. klik 'X')
@@ -131,15 +150,25 @@ void Window::run() {
 				running = false;
 				loop.stop();
 			}
+			// Pauza
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::M)) {
+				isPaused = !isPaused;
+			}
+
 			// Wpisywanie tekstu
-			if (event.type == sf::Event::TextEntered) {
+			if (event.type == sf::Event::TextEntered && !isPaused) {
 				if (event.text.unicode == 8) {
 					if (!playerInput.empty()) {
 						playerInput.pop_back();
 					}
 				}
 				else if (event.text.unicode == 13) {
-					Game::checkWordOnScreen(playerInput, activeWords);
+					Game::checkWordOnScreen(playerInput, game.activeWords, game);
+					for (auto &gw: game.activeWords) {
+						if (!gw.isAlive) {
+							score++;
+						}
+					}
 					playerInput.clear();
 				}
 				else if (event.text.unicode < 128) {
@@ -149,7 +178,7 @@ void Window::run() {
 					}
 				}
 			}
-		}
+		} // koniec poll event
 
 		// Czyszczenie ekranu
 		window.clear();
@@ -181,16 +210,96 @@ void Window::run() {
 		}
 
 		// Jeśli gra wystartowała, tu docelowo wrzucisz logikę rozgrywki
-		if (isGameStarted) {
-			// TODO: implementacja mechaniki pisania
+		if (isGameStarted && !isPaused) {
+			if (spawnClock.getElapsedTime().asSeconds() >= 1.5f) {
+				game.spawnWord();
+				spawnClock.restart();
+			}
+
+			// Aktualizacja słów na ekranie
+			for (auto &gw : game.activeWords) {
+				gw.update(dt); // aktualizacja pozycji
+
+				// zmiana koloru w zależności od pozycji
+				float x = gw.sfText.getPosition().x;
+				float ww = static_cast<float>(Window::width);
+
+				if (x < ww * 0.5f) {
+					gw.sfText.setFillColor(sf::Color::Green);
+				} else if (x < ww * 0.75f) {
+					gw.sfText.setFillColor(sf::Color::Yellow);
+				} else {
+					gw.sfText.setFillColor(sf::Color::Red);
+				}
+
+				// jak słowo wyjdzie za ekran to tracimy życie
+				if (x > ww) {
+					gw.isAlive = false;
+					lives--;
+				}
+			}
+			// recykling martwych słów
+			// wraca do puli nieaktywnych i zwalnia font
+			game.activeWords.erase(
+	std::remove_if(
+		game.activeWords.begin(),
+		game.activeWords.end(),
+		[&](Game::GameWord &w) {
+			if (!w.isAlive) {
+				// zwalniamy font
+				game.releaseFont(w.fontIndex);
+				w.fontIndex = -1;
+				// wrzucamy do inActiveWords
+				w.isAlive = false;
+				game.inActiveWords.push_back(w);
+				return true;
+			}
+			return false;
+		}
+	),
+	game.activeWords.end()
+);
+
+
+			// sprawdz koniec gry
+			if (lives <= 0) {
+				isGameStarted = false;
+				// wyswietlam game over
+				sf::Text gameOver("GAME OVER", antonsc.getSfFont(), 90);
+				gameOver.setFillColor(sf::Color::White);
+				sf::Vector2f gameOverPosition(400.f, 250.f);
+				gameOver.setPosition(gameOverPosition);
+				window.draw(gameOver);
+			}
+
+			// RYSOWANIE aktywnych słów
+			for (auto &gw: game.activeWords) {
+#ifdef DEBUG_WORDS
+				std::cout << "[DEBUG] After update: " << gw.debugInfo() << "\n";
+#endif
+				window.draw(gw.sfText);
+			}
+			// mechanika pisania
 			userInputText.setString(playerInput);
 			float textWidth = userInputText.getLocalBounds().width;
 			float xPos = (static_cast<float>(Window::width) - textWidth) / 2.0f;
-			float yPos = static_cast<float>(Window::height) - 80.0f;
+			float yPos = 30;
 			userInputText.setPosition(xPos, yPos);
 			window.draw(userInputText);
 
-			// todo implementacja mechaniki przesuwania słów
+			// // rysowanie score i lives
+			// scoreText.setString("Score: " + std::to_string(score));
+			// livesText.setString("Lives: " + std::to_string(lives));
+			// window.draw(scoreText);
+			// window.draw(livesText);
+
+			// // jesli pauza to rysuj napis "PAUSED"
+			// if (isPaused) {
+			// 	float pw = pauseText.getLocalBounds().width;
+			// 	float ph = pauseText.getLocalBounds().height;
+			// 	pauseText.setPosition((width - pw)/2.f, (height - ph)/2.f);
+			// 	window.draw(pauseText);
+			// }
 		}
 
 		// Prezentacja klatki

@@ -8,14 +8,16 @@
 #include <atomic>
 #include <thread>
 #include <string>
-#include <iostream>
 
 class Window {
 public:
-    Window(int width, int height, const std::string& title, int frameRate);
+    Window(int width,
+    	int height,
+    	const std::string& title,
+    	int frameRate);
     ~Window();
 	std::string playerInput;
-    void run();
+    auto run() -> void;
 
 private:
     int width;
