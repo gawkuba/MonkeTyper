@@ -9,15 +9,21 @@
 #include <thread>
 #include <string>
 
+enum class GamePhase { Title, Playing, GameOver };
+
 class Window {
 public:
     Window(int width,
-    	int height,
-    	const std::string& title,
-    	int frameRate);
+		int height,
+		const std::string& title,
+		int frameRate);
+
     ~Window();
 	std::string playerInput;
     auto run() -> void;
+
+
+
 
 private:
     int width;
@@ -28,7 +34,7 @@ private:
     // Zmienna kontrolująca działanie programu i wątku muzyki:
     std::atomic<bool> running;
     // Flaga startu gry:
-    bool isGameStarted;
+	GamePhase phase;
 
     // Główne okno SFML:
     sf::RenderWindow window;
@@ -36,6 +42,10 @@ private:
     // Muzyka w tle + wątek, który ją uruchamia:
     sf::Music loop;
     std::thread loopThread;
+
+	int score = 0;
+	int lives = 6;
+	bool isPaused = false;
 };
 
 // Funkcja uruchamiana w osobnym wątku do odtwarzania muzyki

@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <deque>
 #include <sstream>
 #include <iostream>
 #include "font.h"
@@ -62,16 +63,13 @@ public:
 
 		// konstruktor bezparametrowy
 		GameWord()
-			: originalString(""),
-			  isAlive(false),
+			: isAlive(false),
 			  fontIndex(-1),
 			  speedX(0.f) {}
 
 		// konstruktor z parametrami
 		GameWord(const std::string& word,
-				 const sf::Font& font,
-				 int fontIndex,
-				 float speed)
+				 const sf::Font& font, const int fontIndex, const float speed)
 				:originalString(word),
 				 isAlive(true),
 				 fontIndex(fontIndex),
@@ -108,7 +106,7 @@ public:
 	auto spawnWord() -> void;
 
 	std::vector<std::string> words;
-	std::vector<GameWord> inActiveWords;  // słowa gotowe do przerzucenia na ekran
+	std::deque<GameWord> inActiveWords;  // słowa gotowe do przerzucenia na ekran
 	std::vector<GameWord> activeWords;
 
 private:
