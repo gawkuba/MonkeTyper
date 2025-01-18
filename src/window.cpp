@@ -1,13 +1,12 @@
 #include "window.h"
-#include <iostream>
-#include "../include/game.h" // Funkcja loadWordsFromFile
-#include "font.h" // Twój wrapper Font (OpenSans, AntonSC itd.)
 #include <algorithm>
+#include <iostream>
 #include <ranges>
+#include <random>
+#include "../include/game.h"
+#include "font.h"
 
-// ------------------------------------------------------------------
-// Funkcja wątku muzyki
-// ------------------------------------------------------------------
+//  muzyka funkcja pomocnicza
 auto loopThreadFn(sf::Music &loop, const std::atomic<bool> &running) -> void {
 	if (running) {
 		loop.setLoop(true);
@@ -15,64 +14,49 @@ auto loopThreadFn(sf::Music &loop, const std::atomic<bool> &running) -> void {
 	}
 }
 
-// ------------------------------------------------------------------
-// Konstruktor klasy Window
-// ------------------------------------------------------------------
-Window::Window(const int width, const int height, const std::string &title, const int frameRate)
-	: width(static_cast<int>(width))
-	, height(static_cast<int>(height))
-	, title(title)
-	, frameRate(frameRate)
-	, running(true)
-	, phase(GamePhase::Title)
-	, score(0)
-	, lives(6)
-	, isPaused(false)
-{
-	// Tworzymy okno SFML – ale NIE wchodzimy tu w pętlę zdarzeń!
-	window.create(sf::VideoMode(width, height), title, sf::Style::Close);
-	window.setFramerateLimit(frameRate);
-
-	std::cout << "Created window: "
-		  << window.getSize().x << "x"
-		  << window.getSize().y << "\n";
-
+// kolor funkcja pomocnicza ale nie za ciemny
+auto generateRandomColor() -> sf::Color {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<> dist(0, 255);
+	sf::Color color;
+	do {
+		color = sf::Color(dist(gen), dist(gen), dist(gen));
+	} while (color.r + color.g + color.b < 200);
+	return color;
 }
 
-// ------------------------------------------------------------------
-// Destruktor klasy Window
-// ------------------------------------------------------------------
+// konstruktor okna
+Window::Window(const int width, const int height, const std::string &title, const int frameRate) :
+	width(static_cast<int>(width)), height(static_cast<int>(height)), title(title), frameRate(frameRate), running(true),
+	phase(GamePhase::Title) {
+	window.create(sf::VideoMode(width, height), title, sf::Style::Close);
+	window.setFramerateLimit(frameRate);
+}
+
+// destruktor okna
 Window::~Window() {
-	// Upewniamy się, że wątek muzyki został zatrzymany.
+	// zatrzymaj muzykę i wątek
 	running = false;
 	loop.stop();
 	if (loopThread.joinable()) {
 		loopThread.join();
 	}
-	std::cout << "Window destroyed" << std::endl;
 }
 
-// ------------------------------------------------------------------
-// Metoda uruchamiająca główną pętlę zdarzeń i logikę gry
-// ------------------------------------------------------------------
+// glowna petla gry i logika
 auto Window::run() -> void {
-	// Tworzymy obiekt gry
+	// inicjalizacja gry
 	Game game("../assets/words.txt");
 
-
-
-
-
-
-	// 2. Wczytaj fonty
+	// wczytywanie fontów
 	auto loadedFonts = Game::loadAllFonts();
-	std::cout << "Loaded " << loadedFonts.size() << " fonts.\n";
 
 	// fonty uzytkowe z okna
 	Font antonsc = loadedFonts[1];
 	Font orangeKid = loadedFonts[2];
 
-	// Tekst do ekranu Title
+	// teksty do ekranu Title
 	sf::Text monkey("Monke Typer", antonsc.getSfFont(), 90);
 	monkey.setFillColor(sf::Color::White);
 	sf::Vector2f monkeyTextPosition(400.f, 250.f);
@@ -85,32 +69,32 @@ auto Window::run() -> void {
 	sf::Clock blinkClock;
 	float xvel = 4.f;
 
-	// Tekst do Game Over
+	// tekst do Game Over
 	sf::Text gameOverText("GAME OVER", antonsc.getSfFont(), 90);
 	gameOverText.setFillColor(sf::Color::White);
 	gameOverText.setPosition(430.f, 250.f);
 
-	// Tekst wpisywany przez gracza
+	// tekst wpisywany przez gracza
 	sf::Text userInputText;
 	userInputText.setFont(orangeKid.getSfFont());
 	userInputText.setCharacterSize(30);
 	userInputText.setFillColor(sf::Color::White);
 
-	// Tekst z wynikiem
+	// tekst z wynikiem
 	sf::Text scoreText;
 	scoreText.setFont(orangeKid.getSfFont());
 	scoreText.setCharacterSize(20);
 	scoreText.setFillColor(sf::Color::White);
 	scoreText.setPosition(20.f, 20.f);
 
-	// Tekst z ilością żyć
+	// tekst z ilością żyć
 	sf::Text livesText;
 	livesText.setFont(orangeKid.getSfFont());
 	livesText.setCharacterSize(20);
 	livesText.setFillColor(sf::Color::White);
 	livesText.setPosition(20.f, 50.f);
 
-	// Tekst "PAUSED"
+	// tekst "PAUSED"
 	sf::Text pauseText;
 	pauseText.setFont(orangeKid.getSfFont());
 	pauseText.setCharacterSize(40);
@@ -124,33 +108,43 @@ auto Window::run() -> void {
 	altToTitle.setFillColor(sf::Color::White);
 	altToTitle.setPosition(480.f, 360.f);
 
-
-	sf::Text volUpText("Volume up (+)", orangeKid.getSfFont(), 15);
-	sf::Text volDownText("Volume down (-)", orangeKid.getSfFont(), 15);
-	sf::Text volMuteText("Mute (/)", orangeKid.getSfFont(), 15);
-	sf::Text vol100Text("Volume Max (*)", orangeKid.getSfFont(), 15);
-	sf::Vector2f volControl(1280.f-volUpText.getLocalBounds().width-10.f, 10.f);
+	// skróty klawiszowe
+	sf::Text volUpText( "Volume up      (+)", orangeKid.getSfFont(), 15);
+	sf::Text volDownText("Volume down  (-)", orangeKid.getSfFont(), 15);
+	sf::Text volMuteText("Mute               (/)", orangeKid.getSfFont(), 15);
+	sf::Text vol100Text("Volume Max   (*)", orangeKid.getSfFont(), 15);
+	sf::Text pauseInfo( "Pause        (CTRL)", orangeKid.getSfFont(), 15);
+	sf::Text exitInfo(  "Exit             (ESC)", orangeKid.getSfFont(), 15);
+	float windowHeight = static_cast<float>(window.getSize().y);
+	sf::Vector2f volControl(1280.f - volUpText.getLocalBounds().width - 10.f, windowHeight - 10.f - volUpText.getLocalBounds().height);
 	volUpText.setPosition(volControl);
-	volDownText.setPosition(volControl.x, volControl.y + volUpText.getLocalBounds().height + 5.f);
-	volMuteText.setPosition(volControl.x, volControl.y + volUpText.getLocalBounds().height + volDownText.getLocalBounds().height + 10.f);
-	vol100Text.setPosition(volControl.x, volControl.y + volUpText.getLocalBounds().height + volDownText.getLocalBounds().height + volMuteText.getLocalBounds().height + 15.f);
-	volUpText.setFillColor(sf::Color::White); volDownText.setFillColor(sf::Color::White); volMuteText.setFillColor(sf::Color::White); vol100Text.setFillColor(sf::Color::White);
+	volDownText.setPosition(volControl.x, volControl.y - volDownText.getLocalBounds().height - 5.f);
+	volMuteText.setPosition(volControl.x, volDownText.getPosition().y - volMuteText.getLocalBounds().height - 5.f);
+	vol100Text.setPosition(volControl.x, volMuteText.getPosition().y - vol100Text.getLocalBounds().height - 5.f);
+	pauseInfo.setPosition(volControl.x, vol100Text.getPosition().y - pauseInfo.getLocalBounds().height - 5.f);
+	exitInfo.setPosition(volControl.x, pauseInfo.getPosition().y - exitInfo.getLocalBounds().height - 5.f);
+	volUpText.setFillColor(sf::Color::White);
+	volDownText.setFillColor(sf::Color::White);
+	volMuteText.setFillColor(sf::Color::White);
+	vol100Text.setFillColor(sf::Color::White);
+	pauseInfo.setFillColor(sf::Color::White);
+	exitInfo.setFillColor(sf::Color::White);
 
 
-	// 3. Ustawiamy ikonę okna
+	// bardzo fajna ikona
 	if (sf::Image icon; !icon.loadFromFile("../assets/img/jp2.png")) {
 		std::cout << "Failed to load icon ../assets/img/jp2.png\n";
 	} else {
 		window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 	}
 
-	// 4. Uruchamiamy muzykę w osobnym wątku
+	// osobny wątek do muzyki w tle
 	if (!loop.openFromFile("../assets/audio/loop.ogg")) {
 		std::cout << "Failed to open loop music ../assets/audio/loop.ogg\n";
 	}
 	loopThread = std::thread(loopThreadFn, std::ref(loop), std::ref(running));
 
-	// 5. Ładujemy efekt dźwiękowy
+	// click efekt dźwiękowy
 	sf::SoundBuffer clickSoundBuffer;
 	if (!clickSoundBuffer.loadFromFile("../assets/audio/click.ogg")) {
 		std::cout << "Failed to load click sound ../assets/audio/click.ogg\n";
@@ -158,95 +152,116 @@ auto Window::run() -> void {
 	sf::Sound clickSound;
 	clickSound.setBuffer(clickSoundBuffer);
 
-	// 4) Zegary do mierzenia czasu
-	sf::Clock clock;       // do delta time
-	sf::Clock spawnClock;  // jak często spawnujemy nowe słowo
+	// zegary do mierzenia czasu
+	sf::Clock clock; // do delta time
+	sf::Clock spawnClock; // jak często spawnujemy nowe słowo
 
-	// 6. Główna pętla zdarzeń
+	// wartosc logiczna, czy pomijac nastepny znak z klawiatury (np. po wcisnieciu numpada pod ktorym są skróty do kontroli głośności)
+	bool skipNumpadNextChar = false;
+
+	// główna pętla zdarzeń
 	while (window.isOpen()) {
-		// delta time
 		float dt = clock.restart().asSeconds();
-
-		// obsługa zdarzeń
 		sf::Event event{};
+
 		while (window.pollEvent(event)) {
-			// Zamknięcie okna (np. klik 'X')
 			if (event.type == sf::Event::Closed) {
 				window.close();
 				running = false;
 				loop.stop();
 			}
-			// Wyjście klawiszem ESC
 			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
 				window.close();
 				running = false;
 				loop.stop();
 			}
-			// Pauza
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::LControl) {
+
+			// pauza i wznowienie gry
+			if (event.type == sf::Event::KeyPressed &&
+				(event.key.code == sf::Keyboard::LControl ||
+				event.key.code == sf::Keyboard::RControl)) {
 				isPaused = !isPaused;
-			}
+	}
 
-			// Efekt dźwiękowy przy naciśnięciu klawisza
+			// obsługa skrótów klawiszowych
 			if (event.type == sf::Event::KeyPressed) {
-				clickSound.play();
-			}
+				clickSound.play(); // your SFX
 
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Multiply) {
-				loop.setVolume(100.f);
-			}
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Add) {
-				loop.setVolume(loop.getVolume() + 10.f);
-			}
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Subtract) {
-				if (loop.getVolume() <= 10.f) {
+				// max głośność
+				if (event.key.code == sf::Keyboard::Multiply) {
+					loop.setVolume(100.f);
+					skipNumpadNextChar = true;
+				}
+				// podgłaśnianie
+				else if (event.key.code == sf::Keyboard::Add) {
+					loop.setVolume(std::min(loop.getVolume() + 10.f, 100.f));
+					skipNumpadNextChar = true;
+				}
+				// zciszanie
+				else if (event.key.code == sf::Keyboard::Subtract) {
+					float newVol = loop.getVolume() - 10.f;
+					if (newVol < 0.f)
+						newVol = 0.f;
+					loop.setVolume(newVol);
+					skipNumpadNextChar = true;
+				}
+				// wyciszanie
+				else if (event.key.code == sf::Keyboard::Divide) {
 					loop.setVolume(0.f);
+					skipNumpadNextChar = true;
 				} else {
-					loop.setVolume(loop.getVolume() - 10.f);
+					skipNumpadNextChar = false;
 				}
 			}
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Divide) {
-				loop.setVolume(0.f);
-			}
 
-			// wpisywanie tekstu (tylko w fazie Playing, jeśli nie jest pauza)
+			// obsługa zdarzeń tekstowych
 			if (phase == GamePhase::Playing && !isPaused) {
 				if (event.type == sf::Event::TextEntered) {
+					// kiedy wcisniety numpad operator, to pomijamy nastepny znak
+					if (skipNumpadNextChar) {
+						skipNumpadNextChar = false;
+						continue;
+					}
+
+					// obsługa tekstu wpisywanego przez gracza
 					if (event.text.unicode == 8) {
 						// backspace
-						if (!playerInput.empty()) playerInput.pop_back();
-					}
-					else if (event.text.unicode == 13) {
+						if (!playerInput.empty())
+							playerInput.pop_back();
+					} else if (event.text.unicode == 13) {
 						// enter
 						Game::checkWordOnScreen(playerInput, game.activeWords, game);
 						for (auto &gw: game.activeWords) {
-							if (!gw.isAlive) score++;
+							if (!gw.isAlive)
+								score++;
 						}
 						playerInput.clear();
-					}
-					else if (event.text.unicode < 128) {
+						// wypisywanie
+					} else if (event.text.unicode < 128) {
 						if (char typed = static_cast<char>(event.text.unicode); std::isprint(typed)) {
 							playerInput += typed;
 						}
 					}
 				}
 			}
-		} // koniec pollEvent
-
-		// Czyszczenie ekranu
+		}
+		// czyszczenie ekranu
 		window.clear();
 
-		// ========== PHASE HANDLING ==========
+		// ========== obsluga faz gry ==========
 
-		// ----------------- TITLE PHASE -----------------
+		// ----------------- faza tytułowa -----------------
 		if (phase == GamePhase::Title) {
-			// Rysowanie animowanego napisu
+
 			if (loop.getStatus() != sf::Music::Playing) {
 				loop.play();
 			}
+			// rysowanie animowanego napisu
 			window.draw(monkey);
 			if (monkeyTextPosition.x < 360.f || monkeyTextPosition.x > 440.f) {
 				xvel = -xvel;
+				monkey.setFillColor(generateRandomColor());
+
 			}
 			monkeyTextPosition.x += xvel;
 			monkey.setPosition(monkeyTextPosition);
@@ -260,15 +275,24 @@ auto Window::run() -> void {
 				window.draw(pressToStart);
 			}
 
-			// Klik mysz -> start gry:
+			// rysowanie info do skrótów klawiszowych
+			window.draw(volUpText);
+			window.draw(volDownText);
+			window.draw(volMuteText);
+			window.draw(vol100Text);
+			window.draw(pauseInfo);
+			window.draw(exitInfo);
+
+			// start gry po kliknięciu lewego przycisku myszy
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
 				phase = GamePhase::Playing;
 
-				// reset stanu:
+				// reset stanu gry
 				score = 0;
 				lives = 6;
 				playerInput.clear();
-				// Kasujemy activeWords i ponownie initInactiveWords:
+
+				// kasujemy activeWords i ponownie aktywujemy wszystkie słowa nieaktywne
 				game.activeWords.clear();
 				game.initInactiveWords();
 
@@ -276,7 +300,7 @@ auto Window::run() -> void {
 			}
 		}
 
-		// ----------------- PLAYING PHASE -----------------
+		// ----------------- faza gry -----------------
 		else if (phase == GamePhase::Playing) {
 
 			if (!isPaused) {
@@ -286,7 +310,7 @@ auto Window::run() -> void {
 					spawnClock.restart();
 				}
 
-				// Update logic
+				// logika aktualizacji stanu gry
 				for (auto &gw: game.activeWords) {
 					gw.update(dt);
 
@@ -302,13 +326,13 @@ auto Window::run() -> void {
 						gw.sfText.setFillColor(sf::Color::Red);
 					}
 
-					// wychodzi poza ekran
+					// wychodzi poza ekran i gracz traci życie
 					if (x > ww) {
 						gw.isAlive = false;
 						lives--;
 					}
 				}
-				// recykling
+				// recykling "zielony ład"
 				std::erase_if(game.activeWords, [&](Game::GameWord &w) -> bool {
 					if (!w.isAlive) {
 						game.releaseFont(w.fontIndex);
@@ -326,11 +350,19 @@ auto Window::run() -> void {
 				phase = GamePhase::GameOver;
 			}
 
-			// Rysowanie activeWords
+			// rysowanie activeWords
 			for (auto &gw: game.activeWords) {
 				window.draw(gw.sfText);
 			}
-			// Rysowanie playerInput
+			// rysowanie info do skrótów klawiszowych
+			window.draw(volUpText);
+			window.draw(volDownText);
+			window.draw(volMuteText);
+			window.draw(vol100Text);
+			window.draw(pauseInfo);
+			window.draw(exitInfo);
+
+			// rysowanie playerInput
 			userInputText.setString(playerInput);
 			float textWidth = userInputText.getLocalBounds().width;
 			float xPos = (static_cast<float>(window.getSize().x) - textWidth) / 2.f;
@@ -338,32 +370,35 @@ auto Window::run() -> void {
 			userInputText.setPosition(xPos, yPos);
 			window.draw(userInputText);
 
-			// Score, lives
+			// zycia i wynik
 			scoreText.setString("Score: " + std::to_string(score));
 			livesText.setString("Lives: " + std::to_string(lives));
 			window.draw(scoreText);
 			window.draw(livesText);
 
-			// Pauza
+			// co kiedy pauza
 			if (isPaused) {
 				float pw = pauseText.getLocalBounds().width;
-				float ph = pauseText.getLocalBounds().height;
-				pauseText.setPosition((static_cast<float>(width) - pw) / 2.f, (static_cast<float>(height) - ph) / 2.f);
+				pauseText.setPosition(((static_cast<float>(width) - pw) / 2.f)-30.f, 200);
 				window.draw(pauseText);
-				window.draw(volUpText);
-				window.draw(volDownText);
-				window.draw(volMuteText);
-				window.draw(vol100Text);
-
 
 			}
 		}
-		// ----------------- GAMEOVER PHASE -----------------
+		// ----------------- faza game over -----------------
 		else if (phase == GamePhase::GameOver) {
-			// Rysujemy napis gameOverText
+			// rysujemy napis gameOver
 			loop.stop();
 			window.draw(gameOverText);
 
+			// rysowanie info do skrótów klawiszowych
+			window.draw(volUpText);
+			window.draw(volDownText);
+			window.draw(volMuteText);
+			window.draw(vol100Text);
+			window.draw(pauseInfo);
+			window.draw(exitInfo);
+
+			// miganie tak jak w fazie tytułowej
 			if (blinkClock.getElapsedTime().asMilliseconds() >= 350) {
 				isVisible = !isVisible;
 				blinkClock.restart();
@@ -372,19 +407,19 @@ auto Window::run() -> void {
 				window.draw(altToTitle);
 			}
 
-			// Możemy czekać np. na lewy alt, żeby wrócić do Title
+			// alt do title
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt) || sf::Keyboard::isKeyPressed(sf::Keyboard::RAlt)) {
 				phase = GamePhase::Title;
 			}
 		}
 
-		// ========== KONIEC PHASE HANDLING ==========
+		// ========== koniec obslugi faz ==========
 
-		// Prezentacja klatki
+		// najwazniejsza linijka kodu zaraz po ikonie
 		window.display();
 	}
 
-	// 7. Po wyjściu z pętli okna dołącz wątek muzyki (jeśli jeszcze nie dołączony)
+	// zatrzymaj muzykę i wątek jesli nie zrobił tego destruktor
 	if (loopThread.joinable()) {
 		loopThread.join();
 	}

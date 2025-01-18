@@ -1,6 +1,5 @@
 #ifndef WINDOW_H
 #define WINDOW_H
-
 #pragma once
 
 #include <SFML/Graphics.hpp>
@@ -9,46 +8,51 @@
 #include <thread>
 #include <string>
 
+// enum z fazami gry
 enum class GamePhase { Title, Playing, GameOver };
 
 class Window {
+// pola publiczne
 public:
+	// konstruktor
     Window(int width,
 		int height,
 		const std::string& title,
 		int frameRate);
 
+	// destruktor
     ~Window();
 	std::string playerInput;
     auto run() -> void;
 
-
-
-
+// pola prywatne
 private:
     int width;
     int height;
     std::string title;
     int frameRate;
 
-    // Zmienna kontrolująca działanie programu i wątku muzyki:
+    // zmienna kontrolująca działanie programu i wątku muzyki atomic bo wątek
     std::atomic<bool> running;
-    // Flaga startu gry:
+
+    // stan gry
 	GamePhase phase;
 
-    // Główne okno SFML:
+    // okno
     sf::RenderWindow window;
 
-    // Muzyka w tle + wątek, który ją uruchamia:
+    // muza i wątek muzy w tle
     sf::Music loop;
     std::thread loopThread;
 
+	// zasoby gracza i flaga pauzy
 	int score = 0;
 	int lives = 6;
 	bool isPaused = false;
 };
 
-// Funkcja uruchamiana w osobnym wątku do odtwarzania muzyki
+// funkcje pomocnicze
 auto loopThreadFn(sf::Music& loop, const std::atomic<bool>& running) -> void;
+auto generateRandomColor() -> sf::Color;
 
 #endif // WINDOW_H

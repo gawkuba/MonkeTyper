@@ -1,8 +1,5 @@
 #include "../include/game.h"
-
-// Game::Game
-
-
+#include "window.h"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -10,46 +7,34 @@
 #include <string>
 #include <vector>
 
-#include "window.h"
-
 Game::Game(const std::string& wordsFilePath)
 	: currentFontIndex(0)
 {
 	words = loadWordsFromFile(wordsFilePath);
 	fonts = loadAllFonts();
 
-	// Inicjalizacja licznika użycia fontów
+	// inicjalizacja licznika użycia fontów
 	fontUsageCount.resize(fonts.size(), 0);
 
+	// bardzo wazne raz zapomnialem
 	initInactiveWords();
-
-	std::cout << "[Game] Loaded " << words.size() << " words, " << fonts.size() << " fonts.\n";
 }
 
 auto Game::getNextFontIndex()-> int {
-
-	// Przechodzimy maksymalnie przez 16 fontów (fonts.size()),
-	// zaczynając od currentFontIndex. Jeśli znajdziemy wolny (<7),
-	// to zwracamy go i przesuwamy currentFontIndex o 1 do przodu.
-	//
-	// Uwaga: pętla i = 0..fonts.size()-1, bo w najgorszym wypadku
-	// musimy sprawdzić wszystkie fonty jeden po drugim.
-
+	// pomysł miałem taki że biere pierwszy font od currentFontIndex i sprawdzam czy ma mniej niż 7 użyc
+	// bo 112 / 16 = 7 i potem przechodze do nastepnego fontu
+	// tez fajnie jakby nie bylo 7 słow z jednym fontem a potem 7 z nastepnym
+	// więc zrobiłem taką pętlę
 	for (int i = 0; static_cast<int>(fonts.size()); ++i) {
-		// sprawdzamy font o indeksie currentFontIndex
-
-		// jeśli jeszcze nie osiągnął limitu 7 przydzielamy i wychodzimy
 		if (const int idx = currentFontIndex; fontUsageCount[idx] < 7) {
-			fontUsageCount[idx]++; // zwiększamy licznik
-			// przesuwamy currentFontIndex o 1 do przodu
+			fontUsageCount[idx]++;
 			currentFontIndex = (currentFontIndex + 1) % static_cast<int>(fonts.size());
 			return idx;
 		}
-		// przechodzimy do następnego fontu
 		currentFontIndex = (currentFontIndex + 1) % static_cast<int>(fonts.size());
 	}
-	// Jeśli pętla się zakończyła (sprawdziliśmy wszystkie fonty) i nigdzie
-	// nie było < 7, to znaczy brak wolnych fontów (wszystkie po 7 użyć).
+	// przez ustwienie limitu słów na 16 nie powinno być sytuacji, że nie ma fontu
+	// ale dla pewności zwracamy -1
 	return -1;
 }
 
@@ -69,18 +54,18 @@ auto Game::getFont(const int index) -> Font& {
 }
 
 
-// Funkcja do wczytywania słów z pliku
+// funkcja do wczytywania słów z pliku
 auto Game::loadWordsFromFile(const std::string& filePath) -> std::vector<std::string> {
     std::vector<std::string> words;
     std::ifstream file(filePath);
     if (!file.is_open()) {
         std::cerr << "Cannot open words file: " << filePath << "\n";
-        return words;  // zwróć pusty wektor, żeby uniknąć crasha
+        return words;  // zwracam pusty wektor, żeby uniknąć crasha , zdarzylo sie
     }
 
     std::string line;
     while (std::getline(file, line)) {
-        // Pomijamy puste linie
+        // pomijam puste linie
         if (!line.empty()) {
             words.push_back(line);
         }
@@ -93,9 +78,9 @@ auto Game::loadWordsFromFile(const std::string& filePath) -> std::vector<std::st
 auto Game::loadAllFonts() -> std::vector<Font>{
 
     std::vector<Font> fonts;
-    fonts.reserve(16);  // wiemy, że będzie 16 fontów
+    fonts.reserve(16);  // wiemy, że jest aż 16 fontów
 
-    // Utwórz obiekty Font
+    // tworzymy obiekty Font
     Font openSans("OpenSans", "../assets/fonts/OpenSans.ttf");
     Font antonsc("AntonSC", "../assets/fonts/AntonSC.ttf");
     Font orangeKid("OrangeKid", "../assets/fonts/OrangeKid.ttf");
@@ -113,7 +98,7 @@ auto Game::loadAllFonts() -> std::vector<Font>{
     Font roboto("Roboto", "../assets/fonts/Roboto.ttf");
     Font yujiMai("YujiMai", "../assets/fonts/YujiMai.ttf");
 
-    // Załaduj pliki .ttf i sprawdź ewentualne błędy
+    // ładujemy pliki .ttf i sprawdzamy ewentualne błędy
     if (!openSans.load())          { std::cerr << "Failed to load OpenSans\n"; }
     if (!antonsc.load())           { std::cerr << "Failed to load AntonSC\n"; }
     if (!orangeKid.load())         { std::cerr << "Failed to load OrangeKid\n"; }
@@ -131,7 +116,7 @@ auto Game::loadAllFonts() -> std::vector<Font>{
     if (!roboto.load())            { std::cerr << "Failed to load Roboto\n"; }
     if (!yujiMai.load())           { std::cerr << "Failed to load YujiMai\n"; }
 
-    // Dopiero po załadowaniu (nawet jeśli któryś font się nie wczyta)
+    // po załadowaniu (nawet jeśli któryś font się nie wczyta)
     // wrzucamy je do wektora:
     fonts.push_back(openSans);
     fonts.push_back(antonsc);
@@ -150,9 +135,11 @@ auto Game::loadAllFonts() -> std::vector<Font>{
     fonts.push_back(roboto);
     fonts.push_back(yujiMai);
 
+    // zwracam wektor fontów
     return fonts;
 }
 
+// aktualizacja słowa
 auto Game::GameWord::update(const float dt)-> void {
 	auto pos = sfText.getPosition();
 	pos.x += speedX * dt;
@@ -169,7 +156,9 @@ auto Game::checkWordOnScreen(const std::string &typedWord, std::vector<GameWord>
 	}
 }
 
+// inicjalizuje nieaktywne słowa
 auto Game::initInactiveWords() -> void {
+	// czyszczenie jak coś było
 	inActiveWords.clear();
 
 	for (const auto &w: words) {
@@ -179,10 +168,11 @@ auto Game::initInactiveWords() -> void {
 		gw.isAlive = false;
 		gw.fontIndex = -1;
 		gw.speedX = 0.f;
-		// sfText.setFont() nie ustawiamy bo potrzebuje index getNExtFontIndex()
+		// dodajemy do nieaktywnych
 		inActiveWords.push_back(gw);
 	}
 }
+// pojawiają sie słowa
 auto Game::spawnWord() -> void {
     // max 16 aktywnych słów
     if (activeWords.size() >= 16) {
@@ -196,8 +186,7 @@ auto Game::spawnWord() -> void {
         return;
     }
 
-    // LOSOWE pobranie z inActiveWords (zamiast .back())
-    // *lub* jeżeli chcesz brać z końca, to i tak można zrobić push_front
+    // losowanie słowa z nieaktywnych
     static std::random_device rd;
     static std::mt19937 gen(rd());
 
@@ -207,24 +196,26 @@ auto Game::spawnWord() -> void {
     for (size_t i = 0; i < inActiveWords.size(); i++) {
         candidates.push_back(i);
     }
-    // tasujemy
+    // tasujemy, super jest to shuffle
     std::ranges::shuffle(candidates, gen);
 
-    // Weź pierwszy z potasowanej listy
+    // biore pierwszy po przetasowaniu
 	const size_t idx = candidates.front();
 
+	// pobieram słowo
     GameWord gw = inActiveWords[idx];
-    inActiveWords.erase(inActiveWords.begin() + idx);
+	// usuwam z nieaktywnych
+    inActiveWords.erase(inActiveWords.begin() + static_cast<std::deque<GameWord>::difference_type>(idx));
 
     // pobieramy index fontu
     const int fontIdx = getNextFontIndex();
     if (fontIdx == -1) {
         std::cout << "No more fonts available!\n";
-        inActiveWords.push_front(gw); // oddaj na front
+        inActiveWords.push_front(gw);
         return;
     }
 
-    // Ustawiamy parametry GameWord
+    // ustawiam parametry GameWord
     gw.fontIndex = fontIdx;
     gw.sfText.setFont(fonts[fontIdx].getSfFont());
     gw.sfText.setCharacterSize(20);
@@ -233,27 +224,31 @@ auto Game::spawnWord() -> void {
     gw.isAlive = true;
 
     // prędkość zależna od długości
-    const auto velDiff = static_cast<float>(gw.originalString.size());
+    const auto velDiff = static_cast<float>(gw.originalString.size()) * 1.15f;
 
-    gw.speedX = 75.f - velDiff; // np. "dłuższe słowo = wolniejsze"
+    gw.speedX = 75.f - velDiff; // dłuższe słowo = wolniejsze
 
-    // **Losowanie y** z zachowaniem kolizji
+    // trzeba ustawić pozycję y tak, żeby nie kolidowała z innymi słowami więc
+	// używam `std::uniform_real_distribution`
+	// generuje on sobie jakas tam liczbe zmienno przecinkowa z danego przedzialu
+	// tutaj od 100 do 550 czyli pole gry
+	// a potem sprawdzam czy nie ma kolizji z innymi słowami
     std::uniform_real_distribution<float> distY(100.f, 550.f);
-      // np. w oknie 720, a od 100 do 550 to strefa spawnowania
     bool foundY = false;
-    float spawnY = 300.f;
+    float spawnY{};
 	constexpr int maxTries = 20;
     for (int i = 0; i < maxTries; i++) {
 		const float candidateY = distY(gen);
-        // Sprawdzamy kolizję z innymi aktywnymi słowami
+        // sprawdzam kolizję z innymi aktywnymi słowami
         bool collision = false;
         for (auto &aw : activeWords) {
-			// jeżeli mniejsza niż 15 -> kolizja
+			// jeżeli mniejsza niż 15 to bum
             if (const float dy = std::fabs(aw.sfText.getPosition().y - candidateY); dy < 15.f) {
                 collision = true;
                 break;
             }
         }
+		// jeżeli nie ma kolizji to ustawiam
         if (!collision) {
             spawnY = candidateY;
             foundY = true;
@@ -261,20 +256,16 @@ auto Game::spawnWord() -> void {
         }
     }
     if (!foundY) {
-        // nie udało się znaleźć wolnego miejsca
-        // możemy po prostu zrezygnować ze spawnu
+        // jesli nie udało się znaleźć wolnego miejsca
+        // zrezygnuje ze spawnu
         std::cout << "Cannot spawn due to Y-collision after 20 tries\n";
         inActiveWords.push_front(gw); // oddaj
         return;
     }
 
-    // finalnie ustawiamy
+    // finalnie ustawiam pozycję x i y słowa
     gw.sfText.setPosition(-100.f, spawnY);
 
-    // dodajemy do aktywnych
+    // dodaje do aktywnych
     activeWords.push_back(gw);
-
-
 }
-
-
