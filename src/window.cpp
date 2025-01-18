@@ -379,7 +379,7 @@ auto Window::run() -> void {
 			// co kiedy pauza
 			if (isPaused) {
 				float pw = pauseText.getLocalBounds().width;
-				pauseText.setPosition(((static_cast<float>(width) - pw) / 2.f)-30.f, 200);
+				pauseText.setPosition(((static_cast<float>(width) - pw) / 2.f)-20.f, 200);
 				window.draw(pauseText);
 
 			}
