@@ -5,17 +5,17 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 
-// klasa fontu
+// Font class
 class  Font {
 public:
     std::string name;
     std::string fontPath;
     sf::Font sfFont;
 
-	// konstruktor
+	// constructor
     Font(std::string name, std::string fontPath);
 
-	// publiczne metody
+	// public functions
     bool load();
     sf::Font& getSfFont() ;
 };

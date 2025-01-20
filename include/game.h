@@ -11,10 +11,10 @@
 
 class Game {
 public:
-	// konstruktor explicit bo tylko jeden argument
+	// explicit constructor
 	explicit Game(const std::string& wordsFilePath);
 
-	// struktura słowa w grze
+	// game word struct
 	struct GameWord {
 		std::string originalString;
 		sf::Text sfText;
@@ -22,13 +22,13 @@ public:
 		int fontIndex;
 		float speedX;
 
-		// konstruktor bezparametrowy
+		// default constructor
 		GameWord()
 			: isAlive(false),
 			  fontIndex(-1),
 			  speedX(0.f) {}
 
-		// konstruktor z parametrami
+		// custom constructor
 		GameWord(const std::string& word,
 				 const sf::Font& font, const int fontIndex, const float speed)
 				:originalString(word),
@@ -36,47 +36,47 @@ public:
 				 fontIndex(fontIndex),
 				 speedX(speed)
 		{
-			// ustawiamy tekst
+			// text settings
 			sfText.setString(word);
 			sfText.setFont(font);
 			sfText.setCharacterSize(20);
 			sfText.setFillColor(sf::Color::Green);
 		}
-		// funkcja do aktualizacji stanu słowa
+		// update function
 		auto update(float dt)-> void;
 	};
 
-	// zwraca indeks fontu do użycia
+	// return next font index
 	auto getNextFontIndex() -> int;
 
-	// zwalnia font
+	// freeing the font
 	auto releaseFont(int fontIndex) -> void;
 
-	// dostęp do fotu
+	// access to font
 	auto getFont(int index) -> Font&;
 
-	// wcztywanie słów z pliku
+	// loading words from file
 	static auto loadWordsFromFile(const std::string &filePath) -> std::vector<std::string>;
-	// wczytywanie fontów z folderu
+	// loading all fonts from folder
 	static auto loadAllFonts() -> std::vector<Font>;
-	// sprawdzanie czy słowo jest na ekranie
+	// checking word on screen
 	static auto checkWordOnScreen(const std::string& typedWord, std::vector<GameWord>& activeWords, Game &game) -> void;
 
-	// inicjalizacja nieaktywnych słów
+	// initialize inactive words
 	auto initInactiveWords() -> void;
-	// pojawianie się słów
+	// word spawn
 	auto spawnWord() -> void;
 
-	std::vector<std::string> words;      // wszystkie słowa
-	std::deque<GameWord> inActiveWords;  // słowa gotowe do przerzucenia na ekran
-	std::vector<GameWord> activeWords;  // słowa na ekranie
+	std::vector<std::string> words;      // all words
+	std::deque<GameWord> inActiveWords;  // words ready to be spawned
+	std::vector<GameWord> activeWords;  // words on the screen
 
 private:
-	// fonty
+	// fonts
 	std::vector<Font> fonts;
-	// licznik użycia fontów
+	// counter for font usage
 	std::vector<int> fontUsageCount;
-	// indeks fontu od którego zaczynamy przy kolejnym zapytaniu
+	// font index
 	int currentFontIndex;
 };
 #endif // GAME_H

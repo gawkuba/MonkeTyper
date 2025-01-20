@@ -8,50 +8,51 @@
 #include <thread>
 #include <string>
 
-// enum z fazami gry
+// enum class with game phases
 enum class GamePhase { Title, Playing, GameOver };
 
 class Window {
-// pola publiczne
+// public
 public:
-	// konstruktor
+	// constructor
     Window(int width,
 		int height,
 		const std::string& title,
 		int frameRate);
 
-	// destruktor
+	// destructor
     ~Window();
 	std::string playerInput;
     auto run() -> void;
 
-// pola prywatne
+
+// private
 private:
     int width;
     int height;
     std::string title;
     int frameRate;
 
-    // zmienna kontrolująca działanie programu i wątku muzyki atomic bo wątek
+    // atomic flag for the main loop
     std::atomic<bool> running;
 
-    // stan gry
+    // game phase
 	GamePhase phase;
 
-    // okno
+    // window object
     sf::RenderWindow window;
 
-    // muza i wątek muzy w tle
+    // music loop
     sf::Music loop;
     std::thread loopThread;
 
-	// zasoby gracza i flaga pauzy
+	// player resources and score
 	int score = 0;
 	int lives = 6;
 	bool isPaused = false;
 };
 
-// funkcje pomocnicze
+// helper functions
 auto loopThreadFn(sf::Music& loop, const std::atomic<bool>& running) -> void;
 auto generateRandomColor() -> sf::Color;
 

@@ -2,11 +2,11 @@
 #include <iostream>
 #include <utility>
 
-// konstruktor
+// constructor
 Font::Font(std::string name, std::string fontPath)
     :name(std::move(name)), fontPath(std::move(fontPath)) {
 }
-// funkcja flaga
+// font loading
 bool Font::load() {
     if (!sfFont.loadFromFile(fontPath)) {
         std::cout << "Failed to load font from '" << fontPath << "'";
@@ -14,7 +14,7 @@ bool Font::load() {
     }
     return true;
 }
-// dostęp do fontu
+// font access
 sf::Font &Font::getSfFont()  {
     return sfFont;
 }

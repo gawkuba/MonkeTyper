@@ -13,18 +13,16 @@ Game::Game(const std::string& wordsFilePath)
 	words = loadWordsFromFile(wordsFilePath);
 	fonts = loadAllFonts();
 
-	// inicjalizacja licznika użycia fontów
+	// Initialize font usage counters
 	fontUsageCount.resize(fonts.size(), 0);
 
-	// bardzo wazne raz zapomnialem
+	// Initialize inactive words
 	initInactiveWords();
 }
 
-auto Game::getNextFontIndex()-> int {
-	// pomysł miałem taki że biere pierwszy font od currentFontIndex i sprawdzam czy ma mniej niż 7 użyc
-	// bo 112 / 16 = 7 i potem przechodze do nastepnego fontu
-	// tez fajnie jakby nie bylo 7 słow z jednym fontem a potem 7 z nastepnym
-	// więc zrobiłem taką pętlę
+auto Game::getNextFontIndex() -> int {
+	// Retrieve the next font with usage less than 7 times
+	// This ensures balanced distribution across fonts
 	for (int i = 0; static_cast<int>(fonts.size()); ++i) {
 		if (const int idx = currentFontIndex; fontUsageCount[idx] < 7) {
 			fontUsageCount[idx]++;
@@ -33,12 +31,12 @@ auto Game::getNextFontIndex()-> int {
 		}
 		currentFontIndex = (currentFontIndex + 1) % static_cast<int>(fonts.size());
 	}
-	// przez ustwienie limitu słów na 16 nie powinno być sytuacji, że nie ma fontu
-	// ale dla pewności zwracamy -1
+	// With a limit of 16 words, there shouldn't be a situation where no font is available,
+	// but returning -1 as a safeguard.
 	return -1;
 }
 
-// zwalnianie fontu
+// Decrement font usage counter
 auto Game::releaseFont(const int fontIndex) -> void {
 	if (fontIndex >= 0 && fontIndex < static_cast<int>(fontUsageCount.size())) {
 		fontUsageCount[fontIndex]--;
@@ -48,24 +46,23 @@ auto Game::releaseFont(const int fontIndex) -> void {
 	}
 }
 
-// dostęp do fontu
+// Access font by index
 auto Game::getFont(const int index) -> Font& {
 	return fonts[index];
 }
 
-
-// funkcja do wczytywania słów z pliku
+// Function to load words from a file
 auto Game::loadWordsFromFile(const std::string& filePath) -> std::vector<std::string> {
     std::vector<std::string> words;
     std::ifstream file(filePath);
     if (!file.is_open()) {
         std::cerr << "Cannot open words file: " << filePath << "\n";
-        return words;  // zwracam pusty wektor, żeby uniknąć crasha , zdarzylo sie
+        return words;  // Return empty vector to avoid crashes
     }
 
     std::string line;
     while (std::getline(file, line)) {
-        // pomijam puste linie
+        // Skip empty lines
         if (!line.empty()) {
             words.push_back(line);
         }
@@ -74,13 +71,12 @@ auto Game::loadWordsFromFile(const std::string& filePath) -> std::vector<std::st
     return words;
 }
 
-// wczyywanie wszystkich fontów
-auto Game::loadAllFonts() -> std::vector<Font>{
-
+// Load all fonts into the program
+auto Game::loadAllFonts() -> std::vector<Font> {
     std::vector<Font> fonts;
-    fonts.reserve(16);  // wiemy, że jest aż 16 fontów
+    fonts.reserve(16);  // There are exactly 16 fonts
 
-    // tworzymy obiekty Font
+    // Create font objects
     Font openSans("OpenSans", "../assets/fonts/OpenSans.ttf");
     Font antonsc("AntonSC", "../assets/fonts/AntonSC.ttf");
     Font orangeKid("OrangeKid", "../assets/fonts/OrangeKid.ttf");
@@ -98,7 +94,7 @@ auto Game::loadAllFonts() -> std::vector<Font>{
     Font roboto("Roboto", "../assets/fonts/Roboto.ttf");
     Font yujiMai("YujiMai", "../assets/fonts/YujiMai.ttf");
 
-    // ładujemy pliki .ttf i sprawdzamy ewentualne błędy
+    // Attempt to load each font file and log errors if loading fails
     if (!openSans.load())          { std::cerr << "Failed to load OpenSans\n"; }
     if (!antonsc.load())           { std::cerr << "Failed to load AntonSC\n"; }
     if (!orangeKid.load())         { std::cerr << "Failed to load OrangeKid\n"; }
@@ -109,15 +105,14 @@ auto Game::loadAllFonts() -> std::vector<Font>{
     if (!indieFlower.load())       { std::cerr << "Failed to load IndieFlower\n"; }
     if (!lobster.load())           { std::cerr << "Failed to load Lobster\n"; }
     if (!mali.load())              { std::cerr << "Failed to load Mali\n"; }
-    if (!manslava.load())          { std::cerr << "Failed to load Manslava\n"; }
+    if (!manslava.load())          { std::cerr << "Failed to load Mansalva\n"; }
     if (!oswald.load())            { std::cerr << "Failed to load Oswald\n"; }
     if (!pacifico.load())          { std::cerr << "Failed to load Pacifico\n"; }
     if (!permanentMarker.load())   { std::cerr << "Failed to load PermanentMarker\n"; }
     if (!roboto.load())            { std::cerr << "Failed to load Roboto\n"; }
     if (!yujiMai.load())           { std::cerr << "Failed to load YujiMai\n"; }
 
-    // po załadowaniu (nawet jeśli któryś font się nie wczyta)
-    // wrzucamy je do wektora:
+    // Add fonts to the vector even if some failed to load
     fonts.push_back(openSans);
     fonts.push_back(antonsc);
     fonts.push_back(orangeKid);
@@ -135,20 +130,20 @@ auto Game::loadAllFonts() -> std::vector<Font>{
     fonts.push_back(roboto);
     fonts.push_back(yujiMai);
 
-    // zwracam wektor fontów
+    // Return the vector of fonts
     return fonts;
 }
 
-// aktualizacja słowa
-auto Game::GameWord::update(const float dt)-> void {
+// Update word position
+auto Game::GameWord::update(const float dt) -> void {
 	auto pos = sfText.getPosition();
 	pos.x += speedX * dt;
 	sfText.setPosition(pos);
 }
 
-// sprawdzanie słów z ekranu
+// Check if the typed word matches any active word
 auto Game::checkWordOnScreen(const std::string &typedWord, std::vector<GameWord> &activeWords, Game &game) -> void {
-	for (auto &gw: activeWords) {
+	for (auto &gw : activeWords) {
 		if (typedWord == gw.originalString) {
 			gw.isAlive = false;
 			game.releaseFont(gw.fontIndex);
@@ -156,58 +151,56 @@ auto Game::checkWordOnScreen(const std::string &typedWord, std::vector<GameWord>
 	}
 }
 
-// inicjalizuje nieaktywne słowa
+// Initialize inactive words list
 auto Game::initInactiveWords() -> void {
-	// czyszczenie jak coś było
+	// Clear any existing data
 	inActiveWords.clear();
 
-	for (const auto &w: words) {
-		// tworzymy obiekt GameWord jako nieaktywny
+	for (const auto &w : words) {
+		// Create GameWord objects and set them as inactive
 		GameWord gw;
 		gw.originalString = w;
 		gw.isAlive = false;
 		gw.fontIndex = -1;
 		gw.speedX = 0.f;
-		// dodajemy do nieaktywnych
 		inActiveWords.push_back(gw);
 	}
 }
-// pojawiają sie słowa
+
+// Spawn a new word on the screen
 auto Game::spawnWord() -> void {
-    // max 16 aktywnych słów
+    // Limit the number of active words to 16
     if (activeWords.size() >= 16) {
         std::cout << "Max 16 active words!\n";
         return;
     }
 
-    // brak nieaktywnych słów
+    // No inactive words available
     if (inActiveWords.empty()) {
         std::cout << "All words are active!\n";
         return;
     }
 
-    // losowanie słowa z nieaktywnych
+    // Randomly select a word from the inactive words
     static std::random_device rd;
     static std::mt19937 gen(rd());
 
-    // wektor indeksów "kandydatów"
+    // Prepare candidate indices and shuffle
     std::vector<size_t> candidates;
     candidates.reserve(inActiveWords.size());
     for (size_t i = 0; i < inActiveWords.size(); i++) {
         candidates.push_back(i);
     }
-    // tasujemy, super jest to shuffle
     std::ranges::shuffle(candidates, gen);
 
-    // biore pierwszy po przetasowaniu
+    // Select the first candidate
 	const size_t idx = candidates.front();
 
-	// pobieram słowo
+	// Retrieve the word and remove it from inactive list
     GameWord gw = inActiveWords[idx];
-	// usuwam z nieaktywnych
-    inActiveWords.erase(inActiveWords.begin() + static_cast<std::deque<GameWord>::difference_type>(idx));
+	inActiveWords.erase(inActiveWords.begin() + static_cast<std::deque<GameWord>::difference_type>(idx));
 
-    // pobieramy index fontu
+    // Get the next font index
     const int fontIdx = getNextFontIndex();
     if (fontIdx == -1) {
         std::cout << "No more fonts available!\n";
@@ -215,7 +208,7 @@ auto Game::spawnWord() -> void {
         return;
     }
 
-    // ustawiam parametry GameWord
+    // Set parameters for the word
     gw.fontIndex = fontIdx;
     gw.sfText.setFont(fonts[fontIdx].getSfFont());
     gw.sfText.setCharacterSize(20);
@@ -223,32 +216,26 @@ auto Game::spawnWord() -> void {
     gw.sfText.setFillColor(sf::Color::Green);
     gw.isAlive = true;
 
-    // prędkość zależna od długości
+    // Adjust speed based on word length
     const auto velDiff = static_cast<float>(gw.originalString.size()) * 1.15f;
 
-    gw.speedX = 75.f - velDiff; // dłuższe słowo = wolniejsze
+    gw.speedX = 75.f - velDiff; // Longer words move slower
 
-    // trzeba ustawić pozycję y tak, żeby nie kolidowała z innymi słowami więc
-	// używam `std::uniform_real_distribution`
-	// generuje on sobie jakas tam liczbe zmienno przecinkowa z danego przedzialu
-	// tutaj od 100 do 550 czyli pole gry
-	// a potem sprawdzam czy nie ma kolizji z innymi słowami
+    // Generate a Y-position that avoids collision with other words
     std::uniform_real_distribution<float> distY(100.f, 550.f);
     bool foundY = false;
     float spawnY{};
 	constexpr int maxTries = 20;
     for (int i = 0; i < maxTries; i++) {
 		const float candidateY = distY(gen);
-        // sprawdzam kolizję z innymi aktywnymi słowami
+        // Check for collisions with other active words
         bool collision = false;
         for (auto &aw : activeWords) {
-			// jeżeli mniejsza niż 15 to bum
             if (const float dy = std::fabs(aw.sfText.getPosition().y - candidateY); dy < 15.f) {
                 collision = true;
                 break;
             }
         }
-		// jeżeli nie ma kolizji to ustawiam
         if (!collision) {
             spawnY = candidateY;
             foundY = true;
@@ -256,16 +243,15 @@ auto Game::spawnWord() -> void {
         }
     }
     if (!foundY) {
-        // jesli nie udało się znaleźć wolnego miejsca
-        // zrezygnuje ze spawnu
+        // If no valid Y-position is found after max tries
         std::cout << "Cannot spawn due to Y-collision after 20 tries\n";
-        inActiveWords.push_front(gw); // oddaj
+        inActiveWords.push_front(gw); // Return word to inactive list
         return;
     }
 
-    // finalnie ustawiam pozycję x i y słowa
+    // Set final X and Y positions for the word
     gw.sfText.setPosition(-100.f, spawnY);
 
-    // dodaje do aktywnych
+    // Add the word to the list of active words
     activeWords.push_back(gw);
 }
