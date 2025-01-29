@@ -4,6 +4,9 @@ MonkeTyper is a simple typing game developed with C++ and SFML(Simple and Fast M
 By typing the words that are sliding on the screen and clicking enter before they reach the edge of the screen
 player makes the words disappear and do not lose one of his lives.
 
+## Gameplay and features
+
+
 ## Table of Contents
 
 - Features
