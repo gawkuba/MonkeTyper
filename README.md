@@ -6,6 +6,9 @@ player makes the words disappear and do not lose one of his lives.
 
 ## Gameplay and features
 
+Link:
+
+[![YouTube Video](https://img.youtube.com/vi/lDzFKAvUeow/0.jpg)](https://youtu.be/lDzFKAvUeow)
 
 ## Table of Contents
 
