@@ -15,13 +15,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SFML)
 
-FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt
-        GIT_TAG 11.0.2
-)
-FetchContent_MakeAvailable(fmt)
-
 add_executable(Monke src/main.cpp
         src/window.cpp
         include/window.h
@@ -32,4 +25,4 @@ add_executable(Monke src/main.cpp
 )
 
 target_include_directories(Monke PUBLIC include)
-target_link_libraries(Monke PUBLIC sfml-graphics sfml-audio fmt)
+target_link_libraries(Monke PUBLIC sfml-graphics sfml-audio)
